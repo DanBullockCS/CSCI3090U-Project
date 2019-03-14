@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
@@ -17,86 +18,73 @@
 
 using namespace glm;
 
+int width = 640;
+int height = 480;
+
+GLuint programID;
 GLint position_attribute;
 GLuint vbo;
 GLuint ibo;
 
-GLuint programID;
+// projection matrix - perspective projection
+glm::mat4 projectionMatrix;
+// view matrix - orient everything around our preferred view
+glm::mat4 viewMatrix;
 
-GLfloat vertexData[] = {0, 0, 0, 
-                        -1.0f, -1.0f, 0, 
-                        1.0f, -1.0f, 0};
+// Camera related objects
+glm::vec3 eyePosition(90, 0, 0);
+float rotY = 0.0f;
+float scaleY = 1.0f;
 
-GLuint indexData[] = {0, 1, 2};
+GLfloat vertexData[] = {-1, 1, 0, -1, 0, 0, 1, 0, 0, 1, 1, 0};
+std::vector<GLuint> indexData;
 
-
-// NOT WORKING ATM
-static const char *loadFile(std::string filename) {
-    std::string shader = "";
-
-    std::ifstream read;
-    read.open(filename);
-
-    std::string line;
-    while (!read.eof()) {
-        std::getline(read, line);
-        shader += line + "\n";
+static void move_view(int x, int y) {
+    // Increment / decrement the view
+    if (scaleY + y >= 0 && scaleY + y <= 255) {
+        scaleY += y;
     }
-
-    return shader.c_str();
+    rotY += x;
 }
 
-// NOT WORKING ATM
-static GLuint loadShaders() {
-    const char *vertex_string =
-        loadFile("shaders/vertex.glsl");  // Get the vertex shader
-    const char *fragment_string =
-        loadFile("shaders/fragment.glsl");  // Get the fragment shader
+static void key_callback(GLFWwindow *window, int key, int scancode, int action,
+                         int mods) {
+    // Get a keypress and move the objects
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+        glfwSetWindowShouldClose(window, GL_TRUE);
+    } else {
+        if (key == GLFW_KEY_W) {
+            move_view(0, 1);
+        } else if (key == GLFW_KEY_S) {
+            move_view(0, -1);
+        }
+        if (key == GLFW_KEY_A) {
+            move_view(5, 0);
+        } else if (key == GLFW_KEY_D) {
+            move_view(-5, 0);
+        }
+    }
+}
 
-    // VERTEX SHADER
-    // Create the vertex shader
-    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    // Upload vertex shader info into the GPU
-    glShaderSource(vertex_shader, 1, &vertex_string, nullptr);
-    // Compile the vertex shader
-    glCompileShader(vertex_shader);
+static void calculate_perspective(float aspect_ratio) {
+    // Calculate the projection matrix with a 45 degree field of view
+    projectionMatrix =
+        glm::perspective(glm::radians(45.0f), aspect_ratio, 0.1f, 1000.0f);
+}
 
-    // FRAGMENT SHADER
-    // Create the fragment shader
-    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    // Upload fragment shader info into the GPU
-    glShaderSource(fragment_shader, 1, &fragment_string, nullptr);
-    // Compile the fragment shader
-    glCompileShader(fragment_shader);
+static void resize_window(GLFWwindow *window, GLint w, GLint h) {
+    // Take the resolution of thew new window
+    width = w;
+    height = h;
 
+    // Set the viewport to that size
+    glViewport(0, 0, width, height);
 
+    // Get the new aspect ratio of the resolution
+    float aspect_ratio = (float)w / (float)h;
 
-
-
-
-    // BIND SHADERS TOGETHER
-    // Connect the shaders together by creating a program
-    GLuint shader_program = glCreateProgram();
-    glAttachShader(shader_program, vertex_shader);
-    glAttachShader(shader_program, fragment_shader);
-
-    // // Specify which output is for which buffer (for fragment only)
-    // glBindFragDataLocation(fragment_shader, 0, "outColor");
-
-    // LINK AND USE SHADERS
-    // Link the shader to the program
-    glLinkProgram(shader_program);
-    glValidateProgram(shader_program);
-
-    glDetachShader(shader_program, vertex_shader);
-	glDetachShader(shader_program, fragment_shader);
-	glDeleteShader(vertex_shader);
-	glDeleteShader(fragment_shader);
-
-    // // Get the variable of "position" from the shader
-    // position_attribute = glGetAttribLocation(shader_program, "position");
-
-    return shader_program;
+    // Calculate the new aspect ratio
+    calculate_perspective(aspect_ratio);
 }
 
 static void createObject() {
@@ -115,22 +103,28 @@ static void createObject() {
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertexData), vertexData,
                  GL_STATIC_DRAW);
 
-    // (IBO)
+    indexData.push_back(1);
+    indexData.push_back(3);
+    indexData.push_back(0);
+
+    indexData.push_back(2);
+    indexData.push_back(3);
+    indexData.push_back(1);
+
+    // INDEXED VBO (IBO)
     glGenBuffers(1, &ibo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * sizeof(GLuint), indexData,
-                 GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexData.size() * sizeof(GLuint),
+                 &indexData[0], GL_STATIC_DRAW);
 }
 
-static void key_callback(GLFWwindow *window, int key, int scancode, int action,
-                         int mods) {
-    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, GL_TRUE);
-}
-
-static void render(GLFWwindow *window) {
+static void render(GLFWwindow *window, mat4 MVP) {
     // Use the shaders in the program (only 1 shader can be used at a time)
     glUseProgram(programID);
+
+    // LOAD THE TRANSFORMATIONS
+    GLuint mvpMatrixId = glGetUniformLocation(programID, "u_MVP");
+    glUniformMatrix4fv(mvpMatrixId, 1, GL_FALSE, &MVP[0][0]);
 
     // Enable the vertex attribute array
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -152,14 +146,9 @@ static void render(GLFWwindow *window) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // DRAW OBJECTS
-    // First val specifies the type of primitive
-    // Second val specifies how many verticies to skip at the beginning
-    // Third val specifies how many verticies to process
-    glDrawArrays(GL_TRIANGLES, 0, 3);
-
-    // Set index data and render
-    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-    // glDrawElements(GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_SHORT, (void *)0);
+    // Set index data and draw
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+    glDrawElements(GL_TRIANGLES, indexData.size(), GL_UNSIGNED_INT, (void *)0);
 
     // Disable the vertex attribute array
     glDisableVertexAttribArray(position_attribute);
@@ -178,7 +167,7 @@ static GLFWwindow *init_opengl() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #endif
 
-    window = glfwCreateWindow(640, 480, "OpenGL Project", NULL, NULL);
+    window = glfwCreateWindow(width, height, "OpenGL Project", NULL, NULL);
     if (!window) {
         glfwTerminate();
         exit(EXIT_FAILURE);
@@ -196,17 +185,44 @@ static GLFWwindow *init_opengl() {
 }
 
 int main(void) {
-    GLFWwindow *window = init_opengl();
+    GLFWwindow *window = init_opengl();  // Init the scene
 
-    glfwSetKeyCallback(window, key_callback);
+    glfwSetKeyCallback(window, key_callback);  // Catch keyboard keys
+    glfwSetFramebufferSizeCallback(window,
+                                   resize_window);  // Catch window resizing
+    createObject();  // Create the objects in the scene
 
-    createObject();
-    programID = loadShaders();
-    // programID = createShaderProgram("shaders/vertex.glsl", "shaders/fragment.glsl");
+    // Load the shaders
+    programID =
+        createShaderProgram("shaders/vertex.glsl", "shaders/fragment.glsl");
+
+    // Calculate the perspective in the scene
+    calculate_perspective((float)width / height);
+
+    // Calculate the view matrix (where we're looking at)
+    viewMatrix =
+        glm::lookAt(eyePosition, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
     while (!glfwWindowShouldClose(window)) {
-        render(window);
+        // Calculate the model matrix (transformations for the model)
+        glm::vec3 rotationAxis(0, 1, 0);
+        glm::mat4 modelMatrix = glm::mat4(1.0f);
+        modelMatrix =
+            glm::rotate(modelMatrix, glm::radians(0.0f), glm::vec3(1, 0, 0));
+        modelMatrix =
+            glm::rotate(modelMatrix, glm::radians(rotY), glm::vec3(0, 1, 0));
+        modelMatrix =
+            glm::rotate(modelMatrix, glm::radians(0.0f), glm::vec3(0, 0, 1));
+        modelMatrix =
+            glm::scale(modelMatrix, glm::vec3(scaleY, scaleY, scaleY));
 
+        // Calculate the Model View Projection (MVP) matrix
+        glm::mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
+
+        // Render the object
+        render(window, mvp);
+
+        // Display the image
         glfwSwapBuffers(window);
         glfwPollEvents();
         // glfwWaitEvents();
