@@ -32,7 +32,7 @@ glm::mat4 projectionMatrix;
 glm::mat4 viewMatrix;
 
 // Camera related objects
-glm::vec3 eyePosition(90, 0, 0);
+glm::vec3 eyePosition(90, 0, 180);
 float rotY = 0.0f;
 float scaleY = 1.0f;
 
