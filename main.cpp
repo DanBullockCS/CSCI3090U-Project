@@ -23,21 +23,41 @@ int height = 480;
 
 GLuint programID;
 GLint position_attribute;
-GLuint vbo;
-GLuint ibo;
+GLuint vbo_box;
+GLuint ibo_box;
+GLuint vbo_square;
+GLuint ibo_square;
 
-// projection matrix - perspective projection
+// Projection matrix - perspective projection
 glm::mat4 projectionMatrix;
-// view matrix - orient everything around our preferred view
+// View matrix - orient everything around our preferred view
 glm::mat4 viewMatrix;
 
 // Camera related objects
-glm::vec3 eyePosition(90, 0, 180);
+glm::vec3 eyePosition(0, 0, 180);
 float rotY = 0.0f;
 float scaleY = 1.0f;
 
-GLfloat vertexData[] = {-1, 1, 0, -1, 0, 0, 1, 0, 0, 1, 1, 0};
-std::vector<GLuint> indexData;
+// Define positions
+GLfloat vertex_data_box[] = {50,  50,  50,  50, 50,  -50, -50, 50,  50,
+                             -50, 50,  -50, 50, -50, 50,  -50, -50, -50,
+                             -50, -50, 50,  50, -50, -50, 0,   0,   0,
+                             1,   1,   0,   0,  1,   0};
+
+GLfloat vertex_data_square[] = {
+    -5.080000, -5.080000, 0.000000,  5.080000, -5.080000, 0.000000,
+    -5.080000, -5.080000, 10.160000, 5.080000, -5.080000, 10.160000,
+    -5.080000, 5.080000,  10.160000, 5.080000, 5.080000,  10.160000,
+    -5.080000, 5.080000,  0.000000,  5.080000, 5.080000,  0.000000};
+
+GLuint index_data_box[] = {6, 0, 2, 6, 4, 0, 2, 3, 5,
+                           2, 5, 6, 0, 4, 1, 1, 4, 7};
+
+GLuint index_data_square[] = {2,3,5,4};
+
+// Define colors
+vec4 pink(1.0, 0.5, 0.5, 1.0);
+vec4 blue(0.0, 0.0, 0.8, 1.0);
 
 static void move_view(int x, int y) {
     // Increment / decrement the view
@@ -53,14 +73,14 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action,
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GL_TRUE);
     } else {
-        if (key == GLFW_KEY_W) {
+        if (key == GLFW_KEY_W && action == GLFW_PRESS) {
             move_view(0, 1);
-        } else if (key == GLFW_KEY_S) {
+        } else if (key == GLFW_KEY_S && action == GLFW_PRESS) {
             move_view(0, -1);
         }
-        if (key == GLFW_KEY_A) {
+        if (key == GLFW_KEY_A && action == GLFW_PRESS) {
             move_view(5, 0);
-        } else if (key == GLFW_KEY_D) {
+        } else if (key == GLFW_KEY_D && action == GLFW_PRESS) {
             move_view(-5, 0);
         }
     }
@@ -89,45 +109,66 @@ static void resize_window(GLFWwindow *window, GLint w, GLint h) {
 
 static void createObject() {
     // VERTEX ARRAY OBJECTS (VAO)
-    // VAO's stores links between attributes and VBO's (the object buffer)
+    // VAO's stores links between attributes and vbo_box's (the object buffer)
     GLuint vao;
     glGenVertexArrays(1, &vao);  // Create a vao
     // Bind the vao
     glBindVertexArray(vao);
 
-    // VERTEX BUFFER OBJECTS (VBO)
-    glGenBuffers(1, &vbo);  // Create a buffer
+    // FIRST OBJECT
+    // VERTEX BUFFER OBJECTS (vbo_box)
+    glGenBuffers(1, &vbo_box);  // Create a buffer
     // Send the buffer to the GPU and make it active
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_box);
     // Upload the data to the buffer
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertexData), vertexData,
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_data_box), vertex_data_box,
                  GL_STATIC_DRAW);
 
-    indexData.push_back(1);
-    indexData.push_back(3);
-    indexData.push_back(0);
+    // INDEXED vbo_box (ibo_box)
+    glGenBuffers(1, &ibo_box);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_box);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(index_data_box),
+                 &index_data_box[0], GL_STATIC_DRAW);
 
-    indexData.push_back(2);
-    indexData.push_back(3);
-    indexData.push_back(1);
+    // SECOND OBJECT
+    // VERTEX BUFFER OBJECTS (vbo_box)
+    glGenBuffers(1, &vbo_square);  // Create a buffer
+    // Send the buffer to the GPU and make it active
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_square);
+    // Upload the data to the buffer
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_data_square),
+                 vertex_data_square, GL_STATIC_DRAW);
 
-    // INDEXED VBO (IBO)
-    glGenBuffers(1, &ibo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexData.size() * sizeof(GLuint),
-                 &indexData[0], GL_STATIC_DRAW);
+    // INDEXED vbo_box (ibo_box)
+    glGenBuffers(1, &ibo_square);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_square);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(index_data_square),
+                 &index_data_square[0], GL_STATIC_DRAW);
 }
 
 static void render(GLFWwindow *window, mat4 MVP) {
     // Use the shaders in the program (only 1 shader can be used at a time)
     glUseProgram(programID);
 
+    // Turn on depth buffering (dont render objects overtop of eachother)
+    glEnable(GL_DEPTH_TEST);
+
     // LOAD THE TRANSFORMATIONS
     GLuint mvpMatrixId = glGetUniformLocation(programID, "u_MVP");
     glUniformMatrix4fv(mvpMatrixId, 1, GL_FALSE, &MVP[0][0]);
 
+    // Apply the color
+    GLuint color_attribute = glGetUniformLocation(programID, "u_color");
+    glUniform4fv(color_attribute, 1, (GLfloat *)&pink[0]);
+
+    // CLEAR SCREEN
+    // Clear the screen to black
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // FIRST OBJECT
     // Enable the vertex attribute array
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_box);
     // Specify how the input array (the verticies) is inputted into the shader
     // The first val is the input
     // The second val is the number of values in a input
@@ -140,15 +181,41 @@ static void render(GLFWwindow *window, mat4 MVP) {
                           3 * sizeof(GLfloat), (void *)0);
     glEnableVertexAttribArray(position_attribute);
 
-    // CLEAR SCREEN
-    // Clear the screen to black
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    // DRAW OBJECTS
+    // Set index data and draw
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_box);
+    glDrawElements(GL_TRIANGLES,
+                   (sizeof(index_data_box) / sizeof(index_data_box[0])),
+                   GL_UNSIGNED_INT, (void *)0);
+
+    // Disable the vertex attribute array
+    glDisableVertexAttribArray(position_attribute);
+
+    // Apply the color
+    color_attribute = glGetUniformLocation(programID, "u_color");
+    glUniform4fv(color_attribute, 1, (GLfloat *)&blue[0]);
+
+    // SECOND OBJECT
+    // Enable the vertex attribute array
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_square);
+    // Specify how the input array (the verticies) is inputted into the shader
+    // The first val is the input
+    // The second val is the number of values in a input
+    // The third val specifies the type of the input
+    // The fourth val specifies whether the values should be normalized to -1 ->
+    // 1 The fifth val is the stride (how many bytes are between each position
+    // in the array) The sixth val us the offset (how many bytes from the start
+    // of the array the input occurs)
+    glVertexAttribPointer(position_attribute, 3, GL_FLOAT, GL_FALSE,
+                          3 * sizeof(GLfloat), (void *)0);
+    glEnableVertexAttribArray(position_attribute);
 
     // DRAW OBJECTS
     // Set index data and draw
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-    glDrawElements(GL_TRIANGLES, indexData.size(), GL_UNSIGNED_INT, (void *)0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_square);
+    glDrawElements(GL_TRIANGLES,
+                   (sizeof(index_data_square) / sizeof(index_data_square[0])),
+                   GL_UNSIGNED_INT, (void *)0);
 
     // Disable the vertex attribute array
     glDisableVertexAttribArray(position_attribute);
