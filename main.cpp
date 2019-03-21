@@ -14,6 +14,9 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/transform.hpp>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "apis/stb_image.h"
+
 #include "shader.hpp"
 
 using namespace glm;
@@ -27,6 +30,7 @@ GLuint vbo_box;
 GLuint ibo_box;
 GLuint vbo_square;
 GLuint ibo_square;
+GLuint textureID;
 
 // Projection matrix - perspective projection
 glm::mat4 projectionMatrix;
@@ -146,6 +150,49 @@ static void createObject() {
                  &index_data_square[0], GL_STATIC_DRAW);
 }
 
+static void createTexture(std::string filename) {
+  int imageWidth, imageHeight;
+  int numComponents; // how any values are used to represent each pixel
+
+   // load the image data into a bitmap
+   // stbi_load from apis/stb_image.h
+   unsigned char *bitmap = stbi_load(filename.c_str(), &imageWidth, &imageHeight, &numComponents, 4);
+
+   // generate a texture name
+   glGenTextures(1, &textureID);
+
+   // make the texture active
+   glBindTexture(GL_TEXTURE_2D, textureID);
+
+   // make a texture mip map
+   glGenerateTextureMipmap(textureID);
+   glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
+
+   // specify the functions to use when shrinking/enlarging the texture image
+   // mipmap
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+
+   // specify the tiling parameters
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+   // send the data to OpenGL
+   if (bitmap) {
+     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imageWidth, imageHeight,
+                  0, GL_RGBA, GL_UNSIGNED_BYTE, bitmap);
+   } else {
+     std::cout << "Failed to load texture" << std::endl;
+   }
+
+   // bind the texture to unit 0
+   glBindTexture(GL_TEXTURE_2D, textureID);
+   glActiveTexture(GL_TEXTURE0);
+
+   // free the bitmap data
+   stbi_image_free(bitmap);
+}
+
 static void render(GLFWwindow *window, mat4 MVP) {
     // Use the shaders in the program (only 1 shader can be used at a time)
     glUseProgram(programID);
@@ -156,6 +203,13 @@ static void render(GLFWwindow *window, mat4 MVP) {
     // LOAD THE TRANSFORMATIONS
     GLuint mvpMatrixId = glGetUniformLocation(programID, "u_MVP");
     glUniformMatrix4fv(mvpMatrixId, 1, GL_FALSE, &MVP[0][0]);
+
+    // texture sampler - a reference to the texture we've previously created
+    // send the texture id to the texture sampler
+    GLuint textureUniformID = glGetUniformLocation(programID, "textureSampler");
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glUniform1i(textureUniformID, 0);
 
     // Apply the color
     GLuint color_attribute = glGetUniformLocation(programID, "u_color");
@@ -258,6 +312,9 @@ int main(void) {
     glfwSetFramebufferSizeCallback(window,
                                    resize_window);  // Catch window resizing
     createObject();  // Create the objects in the scene
+
+    // Load and prepare the texture
+    createTexture("textures/grass.png");
 
     // Load the shaders
     programID =
