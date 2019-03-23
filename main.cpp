@@ -137,71 +137,75 @@ static void createObject(string objects_files[], int size) {
 }
 
 static void createTexture(std::string filename) {
-   int imageWidth, imageHeight;
-   int numComponents; // how any values are used to represent each pixel
+    int imageWidth, imageHeight;
+    int numComponents;  // how any values are used to represent each pixel
 
-   // load the image data into a bitmap
-   // stbi_load from apis/stb_image.h
-   unsigned char *bitmap = stbi_load(filename.c_str(), &imageWidth,
-   &imageHeight, &numComponents, 0);
+    // load the image data into a bitmap
+    // stbi_load from apis/stb_image.h
+    unsigned char *bitmap = stbi_load(filename.c_str(), &imageWidth,
+                                      &imageHeight, &numComponents, 0);
 
-   // generate a texture name
-   glGenTextures(1, &textureID);
-   // make the texture active
-   glBindTexture(GL_TEXTURE_2D, textureID);
+    // generate a texture name
+    glGenTextures(1, &textureID);
+    // make the texture active
+    glBindTexture(GL_TEXTURE_2D, textureID);
 
-   // make a texture mip map
-   glGenerateMipmap(GL_TEXTURE_2D);
-   glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
+    // make a texture mip map
+    glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
 
-   // specify the functions to use when shrinking/enlarging the texture image
-   // mipmap
-   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+    // specify the tiling parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-   // specify the tiling parameters
-   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    // specify the functions to use when shrinking/enlarging the texture
+    // image mipmap
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                    GL_LINEAR_MIPMAP_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-   // send the data to OpenGL
-   if (bitmap) {
-     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, imageWidth, imageHeight,
-                  0, GL_RGBA, GL_UNSIGNED_BYTE, bitmap);
+    // send the data to OpenGL
+    if (bitmap) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, imageWidth, imageHeight, 0,
+                     GL_RGBA, GL_UNSIGNED_BYTE, bitmap);
+        glGenerateMipmap(GL_TEXTURE_2D);
 
-   } else {
-     std::cout << "Failed to load texture" << std::endl;
-   }
+    } else {
+        std::cout << "Failed to load texture" << std::endl;
+    }
 
-   // bind the texture to unit 0
-   glBindTexture(GL_TEXTURE_2D, textureID);
-   glActiveTexture(GL_TEXTURE0);
+    // bind the texture to unit 0
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glActiveTexture(GL_TEXTURE0);
 
-   // free the bitmap data
-   stbi_image_free(bitmap);
+    // free the bitmap data
+    stbi_image_free(bitmap);
 }
 
 static void drawObject(GLuint programID, objectModel object, GLuint vertex_vbo,
                        GLuint uv_vbo, GLuint normal_vbo, mat4 MVP, mat4 MV,
-                       vec4 color) {
+                       vec4 color, bool texture_flag) {
     // Use the shaders in the program (only 1 shader can be used at a time)
     glUseProgram(programID);
-
-    // texture sampler - a reference to the texture we've previously created
-    // send the texture id to the texture sampler
-    GLuint textureUniformID = glGetUniformLocation(programID, "textureSampler");
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, textureID);
-    glUniform1i(textureUniformID, 0);
 
     // Get the attributes from the shader
     GLuint mvp_attribute = glGetUniformLocation(programID, "u_MVP");
     GLuint mv_attribute = glGetUniformLocation(programID, "u_MV");
     GLuint color_attribute = glGetUniformLocation(programID, "u_color");
     GLuint light_pos_attribute = glGetUniformLocation(programID, "u_light_pos");
+    GLuint texture_uniform_attribute = glGetUniformLocation(programID, "u_texture_sampler");
+    GLuint texture_flag_attribute = glGetUniformLocation(programID, "u_texture_switch");
     GLint texture_coords_attribute =
         glGetAttribLocation(programID, "texture_coords");
     GLint texture_normal_attribute =
         glGetAttribLocation(programID, "texture_normal");
+
+
+    // Send the texture id to the texture sampler
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glUniform1i(texture_uniform_attribute, 0);
+
+    glUniform1f(texture_flag_attribute, texture_flag);
 
     // Send the transformations
     glUniformMatrix4fv(mvp_attribute, 1, GL_FALSE, &MVP[0][0]);
@@ -261,7 +265,7 @@ static void render(GLFWwindow *window, GLuint programID) {
     for (int i = 0; i < objects.size(); i++) {
         drawObject(programID, objects[i], object_vbos[i],
                    object_textcoord_vbos[i], object_normal_vbos[i], mvp, mv,
-                   vec4(i, 0, 1, 1.0));
+                   vec4(i, 0, 1, 1.0), (i % 2 == 0));
     }
 }
 
@@ -323,7 +327,7 @@ int main(void) {
     glfwSetFramebufferSizeCallback(window, resize_window);
 
     // The objects that we wish to load in
-    string object_files[] = {"meshes/cube.obj", "meshes/my_sphere.obj"};
+    string object_files[] = {"meshes/my_sphere.obj", "meshes/newHead.obj"};
     // Create/Load the objects
     createObject(object_files, sizeof(object_files) / sizeof(object_files[0]));
 
