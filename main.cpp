@@ -151,7 +151,7 @@ static void createTexture(std::string filename) {
    glBindTexture(GL_TEXTURE_2D, textureID);
 
    // make a texture mip map
-   glGenerateTextureMipmap(textureID);
+   glGenerateMipmap(GL_TEXTURE_2D);
    glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
 
    // specify the functions to use when shrinking/enlarging the texture image
@@ -167,6 +167,7 @@ static void createTexture(std::string filename) {
    if (bitmap) {
      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, imageWidth, imageHeight,
                   0, GL_RGBA, GL_UNSIGNED_BYTE, bitmap);
+
    } else {
      std::cout << "Failed to load texture" << std::endl;
    }
@@ -322,7 +323,7 @@ int main(void) {
     glfwSetFramebufferSizeCallback(window, resize_window);
 
     // The objects that we wish to load in
-    string object_files[] = {"meshes/newHead.obj", "meshes/my_sphere.obj"};
+    string object_files[] = {"meshes/cube.obj", "meshes/my_sphere.obj"};
     // Create/Load the objects
     createObject(object_files, sizeof(object_files) / sizeof(object_files[0]));
 

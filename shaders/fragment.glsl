@@ -12,5 +12,5 @@ void main(){
     outColor = v_color;
 
     // Textures
-    //outColor = vec4(texture(textureSampler, tex_color).rgb, 1.0);
+    outColor = vec4(texture(textureSampler, tex_color).rgb, 1.0);
 }
