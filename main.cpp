@@ -14,8 +14,8 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/transform.hpp>
 
-// #define STB_IMAGE_IMPLEMENTATION
-// #include "apis/stb_image.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "apis/stb_image.h"
 
 #include "objectModel.cpp"
 #include "shader.hpp"
@@ -25,16 +25,20 @@ using namespace glm;
 int width = 640;
 int height = 480;
 
-
 // Model related objects
-// The attribute for the vertices
-GLint position_attribute;
 // The multiple vertex object buffers
-vector<GLuint> object_vbos;
+std::vector<GLuint> object_vbos;
 // The objects themselves
 std::vector<objectModel> objects;
+// The multiple texture coordinates
+std::vector<GLuint> object_textcoord_vbos;
+// The multiple normals
+std::vector<GLuint> object_normal_vbos;
+// The multiple positions
+GLint vertex_attribute;
 
-// GLuint textureID;
+// The ID for the texture
+GLuint textureID;
 
 // Camera related objects
 // The position of our eye at default
@@ -103,107 +107,129 @@ static void resize_window(GLFWwindow *window, GLint w, GLint h) {
 static void createObject(string objects_files[], int size) {
     for (int i = 0; i < size; i++) {
         objects.push_back(objectModel(objects_files[i]));
-
         object_vbos.push_back(0);
+        object_textcoord_vbos.push_back(0);
+        object_normal_vbos.push_back(0);
+
         // FIRST OBJECT
         // VERTEX BUFFER OBJECTS (vbo)
         glGenBuffers(1, &object_vbos[i]);  // Create a buffer
         // Send the buffer to the GPU and make it active
         glBindBuffer(GL_ARRAY_BUFFER, object_vbos[i]);
         // Upload the data to the buffer
-        // glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_data_box),
-        // vertex_data_box,
-        //              GL_STATIC_DRAW);
-
         glBufferData(GL_ARRAY_BUFFER, objects[i].vertices.size() * sizeof(vec3),
                      &objects[i].vertices[0], GL_STATIC_DRAW);
+
+        glGenBuffers(1, &object_textcoord_vbos[i]);  // Create a buffer
+        // Send the buffer to the GPU and make it active
+        glBindBuffer(GL_ARRAY_BUFFER, object_textcoord_vbos[i]);
+        // Upload the data to the buffer
+        glBufferData(GL_ARRAY_BUFFER, objects[i].uvs.size() * sizeof(vec2),
+                     &objects[i].uvs[0], GL_STATIC_DRAW);
+
+        glGenBuffers(1, &object_normal_vbos[i]);  // Create a buffer
+        // Send the buffer to the GPU and make it active
+        glBindBuffer(GL_ARRAY_BUFFER, object_normal_vbos[i]);
+        // Upload the data to the buffer
+        glBufferData(GL_ARRAY_BUFFER, objects[i].normals.size() * sizeof(vec3),
+                     &objects[i].normals[0], GL_STATIC_DRAW);
     }
 }
 
-// static void createTexture(std::string filename) {
-//   int imageWidth, imageHeight;
-//   int numComponents; // how any values are used to represent each pixel
+static void createTexture(std::string filename) {
+   int imageWidth, imageHeight;
+   int numComponents; // how any values are used to represent each pixel
 
-//    // load the image data into a bitmap
-//    // stbi_load from apis/stb_image.h
-//    unsigned char *bitmap = stbi_load(filename.c_str(), &imageWidth,
-//    &imageHeight, &numComponents, 4);
+   // load the image data into a bitmap
+   // stbi_load from apis/stb_image.h
+   unsigned char *bitmap = stbi_load(filename.c_str(), &imageWidth,
+   &imageHeight, &numComponents, 0);
 
-//    // generate a texture name
-//    glGenTextures(1, &textureID);
+   // generate a texture name
+   glGenTextures(1, &textureID);
+   // make the texture active
+   glBindTexture(GL_TEXTURE_2D, textureID);
 
-//    // make the texture active
-//    glBindTexture(GL_TEXTURE_2D, textureID);
+   // make a texture mip map
+   glGenerateTextureMipmap(textureID);
+   glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
 
-//    // make a texture mip map
-//    glGenerateTextureMipmap(textureID);
-//    glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
+   // specify the functions to use when shrinking/enlarging the texture image
+   // mipmap
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
 
-//    // specify the functions to use when shrinking/enlarging the texture image
-//    // mipmap
-//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-//    GL_LINEAR_MIPMAP_NEAREST);
+   // specify the tiling parameters
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-//    // specify the tiling parameters
-//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+   // send the data to OpenGL
+   if (bitmap) {
+     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, imageWidth, imageHeight,
+                  0, GL_RGBA, GL_UNSIGNED_BYTE, bitmap);
+   } else {
+     std::cout << "Failed to load texture" << std::endl;
+   }
 
-//    // send the data to OpenGL
-//    if (bitmap) {
-//      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imageWidth, imageHeight,
-//                   0, GL_RGBA, GL_UNSIGNED_BYTE, bitmap);
-//    } else {
-//      std::cout << "Failed to load texture" << std::endl;
-//    }
+   // bind the texture to unit 0
+   glBindTexture(GL_TEXTURE_2D, textureID);
+   glActiveTexture(GL_TEXTURE0);
 
-//    // bind the texture to unit 0
-//    glBindTexture(GL_TEXTURE_2D, textureID);
-//    glActiveTexture(GL_TEXTURE0);
+   // free the bitmap data
+   stbi_image_free(bitmap);
+}
 
-//    // free the bitmap data
-//    stbi_image_free(bitmap);
-// }
-
-static void drawObject(GLuint programID, objectModel object, GLuint vbo,
-                       mat4 MVP, vec4 color) {
+static void drawObject(GLuint programID, objectModel object, GLuint vertex_vbo,
+                       GLuint uv_vbo, GLuint normal_vbo, mat4 MVP, mat4 MV,
+                       vec4 color) {
     // Use the shaders in the program (only 1 shader can be used at a time)
     glUseProgram(programID);
 
-    // LOAD THE TRANSFORMATIONS
-    GLuint mvpMatrixId = glGetUniformLocation(programID, "u_MVP");
-    glUniformMatrix4fv(mvpMatrixId, 1, GL_FALSE, &MVP[0][0]);
+    // texture sampler - a reference to the texture we've previously created
+    // send the texture id to the texture sampler
+    GLuint textureUniformID = glGetUniformLocation(programID, "textureSampler");
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glUniform1i(textureUniformID, 0);
 
-    // // texture sampler - a reference to the texture we've previously created
-    // // send the texture id to the texture sampler
-    // GLuint textureUniformID = glGetUniformLocation(programID,
-    // "textureSampler"); glActiveTexture(GL_TEXTURE0);
-    // glBindTexture(GL_TEXTURE_2D, textureID);
-    // glUniform1i(textureUniformID, 0);
-
-    // Apply the color
+    // Get the attributes from the shader
+    GLuint mvp_attribute = glGetUniformLocation(programID, "u_MVP");
+    GLuint mv_attribute = glGetUniformLocation(programID, "u_MV");
     GLuint color_attribute = glGetUniformLocation(programID, "u_color");
+    GLuint light_pos_attribute = glGetUniformLocation(programID, "u_light_pos");
+    GLint texture_coords_attribute =
+        glGetAttribLocation(programID, "texture_coords");
+    GLint texture_normal_attribute =
+        glGetAttribLocation(programID, "texture_normal");
+
+    // Send the transformations
+    glUniformMatrix4fv(mvp_attribute, 1, GL_FALSE, &MVP[0][0]);
+    glUniformMatrix4fv(mv_attribute, 1, GL_FALSE, &MV[0][0]);
+    // Send the color information
     glUniform4fv(color_attribute, 1, (GLfloat *)&color[0]);
-
-    // Enable the vertex attribute array
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    // Specify how the input array (the verticies) is inputted into the shader
-    // The first val is the input
-    // The second val is the number of values in a input
-    // The third val specifies the type of the input
-    // The fourth val specifies whether the values should be normalized to -1 ->
-    // 1 The fifth val is the stride (how many bytes are between each position
-    // in the array) The sixth val us the offset (how many bytes from the start
-    // of the array the input occurs)
-    glVertexAttribPointer(position_attribute, 3, GL_FLOAT, GL_FALSE, 0,
+    // Send the light position information
+    glUniform3f(light_pos_attribute, 100, 0, 0);
+    // Send the texture coords
+    glBindBuffer(GL_ARRAY_BUFFER, uv_vbo);
+    glEnableVertexAttribArray(texture_coords_attribute);
+    glVertexAttribPointer(texture_coords_attribute, 2, GL_FLOAT, GL_FALSE, 0,
+                          nullptr);
+    // Send the normals
+    glBindBuffer(GL_ARRAY_BUFFER, normal_vbo);
+    glEnableVertexAttribArray(texture_normal_attribute);
+    glVertexAttribPointer(texture_normal_attribute, 3, GL_FLOAT, GL_FALSE, 0,
+                          nullptr);
+    // Send the vertex_data
+    glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo);
+    glEnableVertexAttribArray(vertex_attribute);
+    glVertexAttribPointer(vertex_attribute, 3, GL_FLOAT, GL_FALSE, 0,
                           (void *)0);
-    glEnableVertexAttribArray(position_attribute);
-
+    // Draw the elements in the buffer
     glDrawArrays(GL_TRIANGLES, 0, object.vertices.size() * 3);
-
-    // DRAW OBJECTS
-    // Disable the vertex attribute array
-    glDisableVertexAttribArray(position_attribute);
+    // Disable the attribute arrays
+    glDisableVertexAttribArray(vertex_attribute);
+    glDisableVertexAttribArray(texture_normal_attribute);
+    glDisableVertexAttribArray(texture_coords_attribute);
 }
 
 static void render(GLFWwindow *window, GLuint programID) {
@@ -228,10 +254,12 @@ static void render(GLFWwindow *window, GLuint programID) {
 
     // Calculate the Model View Projection (MVP) matrix
     glm::mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
+    glm::mat4 mv = viewMatrix * modelMatrix;
 
     // Render the objects
     for (int i = 0; i < objects.size(); i++) {
-        drawObject(programID, objects[i], object_vbos[i], mvp,
+        drawObject(programID, objects[i], object_vbos[i],
+                   object_textcoord_vbos[i], object_normal_vbos[i], mvp, mv,
                    vec4(i, 0, 1, 1.0));
     }
 }
@@ -251,6 +279,8 @@ static GLFWwindow *init_opengl() {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #endif
+    // Enable antialising
+    glfwWindowHint(GLFW_SAMPLES, 8);
 
     // Create the window
     window = glfwCreateWindow(width, height, "OpenGL Project", NULL, NULL);
@@ -292,12 +322,12 @@ int main(void) {
     glfwSetFramebufferSizeCallback(window, resize_window);
 
     // The objects that we wish to load in
-    string object_files[] = {"newHead.obj", "my_sphere.obj"};
+    string object_files[] = {"meshes/newHead.obj", "meshes/my_sphere.obj"};
     // Create/Load the objects
     createObject(object_files, sizeof(object_files) / sizeof(object_files[0]));
 
     // Load and prepare the texture
-    // createTexture("textures/grass.png");
+    createTexture("textures/grass.png");
 
     // Load the shaders
     GLuint programID =
