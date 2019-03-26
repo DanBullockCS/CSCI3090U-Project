@@ -21,7 +21,7 @@ void main(){
 
     // Calculate the lighting
     vec3 pos_viewspace = vec3(u_MV * vec4(position, 1.0));
-    vec3 norm_viewspace = normalize(vec3(u_MV * vec4(texture_normal, 0.0)));;
+    vec3 norm_viewspace = normalize(vec3(u_MV * vec4(texture_normal, 0.0)));
 
     float distance = length(u_light_pos - pos_viewspace);
     vec3 lightvector_viewspace = normalize(u_light_pos - pos_viewspace);

@@ -42,27 +42,26 @@ GLuint textureID;
 
 // Camera related objects
 // The position of our eye at default
-glm::vec3 eyePosition(0, 0, 180);
-// How much to rotate the scene
-float rotY = 0.0f;
+glm::vec3 eyePosition(0, 180, 100);
 // How much to scale the Scene
 float scaleY = 1.0f;
 // Projection matrix - perspective projection
-glm::mat4 projectionMatrix;
+glm::mat4 projection_matrix;
 // View matrix - orient everything around our preferred view
-glm::mat4 viewMatrix;
+glm::mat4 view_matrix;
 
 // Define colors
 vec4 pink(1.0, 0.5, 0.5, 1.0);
 vec4 blue(0.0, 0.0, 0.8, 1.0);
 
-static void move_view(int x, int y) {
-    // Increment / decrement the view
-    if (scaleY + y >= 0 && scaleY + y <= 255) {
-        scaleY += y;
-    }
-    rotY += x;
-}
+// The velocity to move the object by
+float veloc = 0.3f;
+// How much to rotate the circle
+float rot_x = 0.0f;
+float rot_y = 0.0f;
+// How much to move the cirlce
+float trans_x = 0.0f;
+float trans_y = 0.0f;
 
 static void key_callback(GLFWwindow *window, int key, int scancode, int action,
                          int mods) {
@@ -70,22 +69,26 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action,
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, GL_TRUE);
     } else {
-        if (key == GLFW_KEY_W && action == GLFW_PRESS) {
-            move_view(0, 1);
-        } else if (key == GLFW_KEY_S && action == GLFW_PRESS) {
-            move_view(0, -1);
+        if (key == GLFW_KEY_W) {
+            rot_x -= veloc;
+            trans_y -= 1;
+        } else if (key == GLFW_KEY_S) {
+            rot_x += veloc;
+            trans_y += 1;
         }
-        if (key == GLFW_KEY_A && action == GLFW_PRESS) {
-            move_view(5, 0);
-        } else if (key == GLFW_KEY_D && action == GLFW_PRESS) {
-            move_view(-5, 0);
+        if (key == GLFW_KEY_A) {
+            rot_y += veloc;
+            trans_x -= 1;
+        } else if (key == GLFW_KEY_D) {
+            rot_y -= veloc;
+            trans_x += 1;
         }
     }
 }
 
 static void calculate_perspective(float aspect_ratio) {
     // Calculate the projection matrix with a 45 degree field of view
-    projectionMatrix =
+    projection_matrix =
         glm::perspective(glm::radians(45.0f), aspect_ratio, 0.1f, 1000.0f);
 }
 
@@ -104,7 +107,7 @@ static void resize_window(GLFWwindow *window, GLint w, GLint h) {
     calculate_perspective(aspect_ratio);
 }
 
-static void createObject(string objects_files[], int size) {
+static void create_object(string objects_files[], int size) {
     for (int i = 0; i < size; i++) {
         objects.push_back(objectModel(objects_files[i]));
         object_vbos.push_back(0);
@@ -136,7 +139,7 @@ static void createObject(string objects_files[], int size) {
     }
 }
 
-static void createTexture(std::string filename) {
+static void create_texture(std::string filename) {
     int imageWidth, imageHeight;
     int numComponents;  // how any values are used to represent each pixel
 
@@ -181,9 +184,9 @@ static void createTexture(std::string filename) {
     stbi_image_free(bitmap);
 }
 
-static void drawObject(GLuint programID, objectModel object, GLuint vertex_vbo,
-                       GLuint uv_vbo, GLuint normal_vbo, mat4 MVP, mat4 MV,
-                       vec4 color, bool texture_flag) {
+static void draw_object(GLuint programID, objectModel object, GLuint vertex_vbo,
+                        GLuint uv_vbo, GLuint normal_vbo, mat4 MVP, mat4 MV,
+                        vec4 color, bool texture_flag) {
     // Use the shaders in the program (only 1 shader can be used at a time)
     glUseProgram(programID);
 
@@ -192,13 +195,14 @@ static void drawObject(GLuint programID, objectModel object, GLuint vertex_vbo,
     GLuint mv_attribute = glGetUniformLocation(programID, "u_MV");
     GLuint color_attribute = glGetUniformLocation(programID, "u_color");
     GLuint light_pos_attribute = glGetUniformLocation(programID, "u_light_pos");
-    GLuint texture_uniform_attribute = glGetUniformLocation(programID, "u_texture_sampler");
-    GLuint texture_flag_attribute = glGetUniformLocation(programID, "u_texture_switch");
+    GLuint texture_uniform_attribute =
+        glGetUniformLocation(programID, "u_texture_sampler");
+    GLuint texture_flag_attribute =
+        glGetUniformLocation(programID, "u_texture_switch");
     GLint texture_coords_attribute =
         glGetAttribLocation(programID, "texture_coords");
     GLint texture_normal_attribute =
         glGetAttribLocation(programID, "texture_normal");
-
 
     // Send the texture id to the texture sampler
     glActiveTexture(GL_TEXTURE0);
@@ -246,26 +250,41 @@ static void render(GLFWwindow *window, GLuint programID) {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // Calculate the model matrix (transformations for the model)
-    glm::vec3 rotationAxis(0, 1, 0);
-    glm::mat4 modelMatrix = glm::mat4(1.0f);
-    modelMatrix =
-        glm::rotate(modelMatrix, glm::radians(0.0f), glm::vec3(1, 0, 0));
-    modelMatrix =
-        glm::rotate(modelMatrix, glm::radians(rotY), glm::vec3(0, 1, 0));
-    modelMatrix =
-        glm::rotate(modelMatrix, glm::radians(0.0f), glm::vec3(0, 0, 1));
-    modelMatrix = glm::scale(modelMatrix, glm::vec3(scaleY, scaleY, scaleY));
-
-    // Calculate the Model View Projection (MVP) matrix
-    glm::mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
-    glm::mat4 mv = viewMatrix * modelMatrix;
-
     // Render the objects
     for (int i = 0; i < objects.size(); i++) {
-        drawObject(programID, objects[i], object_vbos[i],
-                   object_textcoord_vbos[i], object_normal_vbos[i], mvp, mv,
-                   vec4(i, 0, 1, 1.0), (i % 2 == 0));
+        // Set the axis for rotation
+        glm::vec3 rotationAxis(0, 0, 0);
+        // Set the identity matrix
+        glm::mat4 model_matrix = glm::mat4(1.0f);
+
+        if (rot_x > 360) {
+            rot_x = 0;
+        } else if (rot_x < 0) {
+            rot_x = 360;
+        }
+        if (rot_y > 360) {
+            rot_y = 0;
+        } else if (rot_y < 0) {
+            rot_y = 360;
+        }
+
+        // Move the object over
+        model_matrix =
+            glm::translate(model_matrix, glm::vec3(trans_x, 0.0, trans_y));
+
+        // Rotate it depending on the value
+        model_matrix = glm::rotate(model_matrix, rot_x, glm::vec3(1, 0, 0));
+        model_matrix = glm::rotate(model_matrix, rot_y, glm::vec3(0, 0, 1));
+
+        // Calculate the scale of the object
+        model_matrix =
+            glm::scale(model_matrix, glm::vec3(scaleY, scaleY, scaleY));
+
+        // Draw the object
+        draw_object(programID, objects[i], object_vbos[i],
+                    object_textcoord_vbos[i], object_normal_vbos[i],
+                    projection_matrix * view_matrix * model_matrix,
+                    view_matrix * model_matrix, vec4(i, 0, 1, 1.0), true);
     }
 }
 
@@ -327,12 +346,12 @@ int main(void) {
     glfwSetFramebufferSizeCallback(window, resize_window);
 
     // The objects that we wish to load in
-    string object_files[] = {"meshes/my_sphere.obj", "meshes/newHead.obj"};
+    string object_files[] = {"meshes/my_sphere.obj" /*, "meshes/alfa147.obj"*/};
     // Create/Load the objects
-    createObject(object_files, sizeof(object_files) / sizeof(object_files[0]));
+    create_object(object_files, sizeof(object_files) / sizeof(object_files[0]));
 
     // Load and prepare the texture
-    createTexture("textures/grass.png");
+    create_texture("textures/soccer.png");
 
     // Load the shaders
     GLuint programID =
@@ -342,7 +361,7 @@ int main(void) {
     calculate_perspective((float)width / height);
 
     // Calculate the view matrix (where we're looking at)
-    viewMatrix =
+    view_matrix =
         glm::lookAt(eyePosition, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
     while (!glfwWindowShouldClose(window)) {
