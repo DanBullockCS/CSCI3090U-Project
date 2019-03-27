@@ -34,8 +34,6 @@ std::vector<objectModel> objects;
 std::vector<GLuint> object_textcoord_vbos;
 // The multiple normals
 std::vector<GLuint> object_normal_vbos;
-// The multiple positions
-GLint vertex_attribute;
 
 // The ID for the texture
 GLuint textureID;
@@ -157,8 +155,8 @@ static void create_texture(std::string filename) {
     glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
 
     // specify the tiling parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     // specify the functions to use when shrinking/enlarging the texture
     // image mipmap
@@ -191,6 +189,7 @@ static void draw_object(GLuint programID, objectModel object, GLuint vertex_vbo,
     glUseProgram(programID);
 
     // Get the attributes from the shader
+    GLint vertex_attribute = glGetAttribLocation(programID, "position");
     GLuint mvp_attribute = glGetUniformLocation(programID, "u_MVP");
     GLuint mv_attribute = glGetUniformLocation(programID, "u_MV");
     GLuint color_attribute = glGetUniformLocation(programID, "u_color");
