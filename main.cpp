@@ -190,16 +190,16 @@ static GLuint create_skybox(std::string texture_files[], int size) {
     glGenTextures(1, &tempTextureID);
     glBindTexture(GL_TEXTURE_CUBE_MAP, tempTextureID);
 
-    int width, height, nrChannels;
+    int width, height, num_channels;
     for (unsigned int i = 0; i < size; i++) {
         unsigned char *data = stbi_load(texture_files[i].c_str(), &width,
-                                        &height, &nrChannels, 0);
+                                        &height, &num_channels, 0);
         if (data) {
             glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width,
                          height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
             stbi_image_free(data);
         } else {
-            std::cout << "Cubemap texture failed to load at path: "
+            std::cout << "Cubemap texture failed to load at the path: "
                       << texture_files[i] << std::endl;
             stbi_image_free(data);
         }
@@ -227,6 +227,8 @@ static void draw_object(GLuint programID, objectModel object, GLuint vertex_vbo,
     GLuint light_pos_attribute = glGetUniformLocation(programID, "u_light_pos");
     GLuint texture_uniform_attribute =
         glGetUniformLocation(programID, "u_texture_sampler");
+    GLuint texture_cubemap =
+            glGetAttribLocation(programID, "cubemap");
     GLuint texture_flag_attribute =
         glGetUniformLocation(programID, "u_texture_switch");
     GLint texture_coords_attribute =
@@ -393,17 +395,22 @@ int main(void) {
 
     // Load and prepare the texture
     textureID = create_texture("textures/soccer.png");
+
     // Load the textures for the skybox
-    // string skybox_textures[] = {"skyboxes/right.jpg", "skyboxes/left.jpg",
-    //                             "skyboxes/top.jpg",   "skyboxes/bottom.jpg",
-    //                             "skyboxes/front.jpg", "skyboxes/back.jpg"};
-    // textureID = create_skybox(
-    //     skybox_textures, sizeof(skybox_textures) /
-    //     sizeof(skybox_textures[0]));
+    string skybox_textures[] = {"skyboxes/right.jpg", "skyboxes/left.jpg",
+                                "skyboxes/top.jpg",   "skyboxes/bottom.jpg",
+                                "skyboxes/front.jpg", "skyboxes/back.jpg"};
+    textureID = create_skybox(
+        skybox_textures, sizeof(skybox_textures) /
+        sizeof(skybox_textures[0]));
 
     // Load the shaders
     GLuint programID =
         createShaderProgram("shaders/vertex.glsl", "shaders/fragment.glsl");
+
+    // Load the skybox shaders
+    //GLuint programID =
+    //    createShaderProgram("shaders/skybox_vertex.glsl", "shaders/skybox_fragment.glsl");
 
     // Calculate the perspective in the scene
     calculate_perspective((float)width / height);
