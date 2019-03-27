@@ -34,13 +34,12 @@ std::vector<objectModel> objects;
 std::vector<GLuint> object_textcoord_vbos;
 // The multiple normals
 std::vector<GLuint> object_normal_vbos;
-
-// The ID for the texture
-GLuint textureID;
+// The IDs for the texture
+std::vector<GLuint> texture_locs;
 
 // Camera related objects
 // The position of our eye at default
-glm::vec3 eyePosition(0, 180, 360);
+glm::vec3 eyePosition(0, 90, 360);
 // How much to scale the Scene
 float scaleY = 1.0f;
 // Projection matrix - perspective projection
@@ -137,51 +136,57 @@ static void create_object(std::string objects_files[], int size) {
     }
 }
 
-static GLuint create_texture(std::string filename) {
-    int imageWidth, imageHeight;
-    int numComponents;  // how any values are used to represent each pixel
-
-    // load the image data into a bitmap
-    // stbi_load from apis/stb_image.h
-    unsigned char *bitmap = stbi_load(filename.c_str(), &imageWidth,
-                                      &imageHeight, &numComponents, 4);
-
-    GLuint temp_texture_ID;
+static void create_texture(std::string textures[], int size) {
+    GLuint texture_ids[size];
     // generate a texture name
-    glGenTextures(1, &temp_texture_ID);
-    // make the texture active
-    glBindTexture(GL_TEXTURE_2D, temp_texture_ID);
+    glGenTextures(size, texture_ids);
 
-    // make a texture mip map
-    glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
+    for (int i = 0; i < size; i++) {
+        std::string filename = textures[i];
 
-    // specify the functions to use when shrinking/enlarging the texture
-    // image mipmap
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                    GL_LINEAR_MIPMAP_NEAREST);
+        // make the texture active
+        glBindTexture(GL_TEXTURE_2D, texture_ids[i]);
 
-    // specify the tiling parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        int imageWidth, imageHeight;
+        int numComponents;  // how any values are used to represent each pixel
 
-    // send the data to OpenGL
-    if (bitmap) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, imageWidth, imageHeight, 0,
-                     GL_RGBA, GL_UNSIGNED_BYTE, bitmap);
-        glGenerateMipmap(GL_TEXTURE_2D);
-    } else {
-        std::cout << "Failed to load texture" << std::endl;
+        // load the image data into a bitmap
+        // stbi_load from apis/stb_image.h
+        stbi_set_flip_vertically_on_load(true);  
+        unsigned char *bitmap = stbi_load(filename.c_str(), &imageWidth,
+                                          &imageHeight, &numComponents, 4);
+
+        // make a texture mip map
+        glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
+
+        // specify the functions to use when shrinking/enlarging the texture
+        // image mipmap
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                        GL_LINEAR_MIPMAP_NEAREST);
+
+        // specify the tiling parameters
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+        // send the data to OpenGL
+        if (bitmap) {
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, imageWidth, imageHeight, 0,
+                         GL_RGBA, GL_UNSIGNED_BYTE, bitmap);
+            glGenerateMipmap(GL_TEXTURE_2D);
+        } else {
+            std::cout << "Failed to load texture" << std::endl;
+        }
+
+        // bind the texture to unit 0
+        // glBindTexture(GL_TEXTURE_2D, temp_texture_ID);
+        // glActiveTexture(GL_TEXTURE0);
+
+        // free the bitmap data
+        stbi_image_free(bitmap);
+
+        texture_locs.push_back(texture_ids[i]);
     }
-
-    // bind the texture to unit 0
-    glBindTexture(GL_TEXTURE_2D, temp_texture_ID);
-    glActiveTexture(GL_TEXTURE0);
-
-    // free the bitmap data
-    stbi_image_free(bitmap);
-
-    return temp_texture_ID;
 }
 
 // TODO: Mainly copied from a tutorial - rewrite
@@ -214,7 +219,7 @@ static GLuint create_skybox(std::string texture_files[], int size) {
 }
 
 static void draw_object(GLuint programID, objectModel object, GLuint vertex_vbo,
-                        GLuint uv_vbo, GLuint normal_vbo, mat4 MVP, mat4 MV,
+                        GLuint uv_vbo, GLuint normal_vbo, GLuint textureID, mat4 MVP, mat4 MV,
                         vec4 color, bool texture_flag) {
     // Use the shaders in the program (only 1 shader can be used at a time)
     glUseProgram(programID);
@@ -227,10 +232,8 @@ static void draw_object(GLuint programID, objectModel object, GLuint vertex_vbo,
     GLuint light_pos_attribute = glGetUniformLocation(programID, "u_light_pos");
     GLuint texture_uniform_attribute =
         glGetUniformLocation(programID, "u_texture_sampler");
-    GLuint texture_cubemap =
-            glGetAttribLocation(programID, "cubemap");
     GLuint texture_flag_attribute =
-        glGetUniformLocation(programID, "u_texture_switch");
+        glGetUniformLocation(programID, "u_lighting_switch");
     GLint texture_coords_attribute =
         glGetAttribLocation(programID, "texture_coords");
     GLint texture_normal_attribute =
@@ -255,7 +258,7 @@ static void draw_object(GLuint programID, objectModel object, GLuint vertex_vbo,
                           nullptr);
     // Send the texture data
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
     // glUniform1i(texture_uniform_attribute, 0);
     glUniform1f(texture_flag_attribute, texture_flag);
     // Send the vertex_data
@@ -305,7 +308,7 @@ static void render(GLFWwindow *window, GLuint programID) {
         if (i == 0) {
             // Move the object over
             model_matrix =
-                glm::translate(model_matrix, glm::vec3(trans_x, 0.0, trans_y));
+                glm::translate(model_matrix, glm::vec3(trans_x, 20, trans_y));
 
             // Rotate it depending on the value
             model_matrix = glm::rotate(model_matrix, rot_x, glm::vec3(1, 0, 0));
@@ -314,7 +317,7 @@ static void render(GLFWwindow *window, GLuint programID) {
             // Draw the texture on the cube
             use_textures = true;
         } else if (i == objects.size() - 1) {
-            use_textures = true;
+            use_textures = false;
         }
 
         // Calculate the scale of the object
@@ -323,7 +326,7 @@ static void render(GLFWwindow *window, GLuint programID) {
 
         // Draw the object
         draw_object(programID, objects[i], object_vbos[i],
-                    object_textcoord_vbos[i], object_normal_vbos[i],
+                    object_textcoord_vbos[i], object_normal_vbos[i], texture_locs[i],
                     projection_matrix * view_matrix * model_matrix,
                     view_matrix * model_matrix, vec4(i / 10, 0, 1, 1.0),
                     use_textures);
@@ -389,28 +392,17 @@ int main(void) {
 
     // The objects that we wish to load in
     // The first object must be the ball, the last object must be the cube
-    string object_files[] = {"meshes/my_sphere.obj", "meshes/cube.obj"};
+    string object_files[] = {"meshes/my_sphere.obj", "meshes/plane.obj", "meshes/cube.obj"};
     // Create/Load the objects
     create_object(object_files, sizeof(object_files) / sizeof(object_files[0]));
 
     // Load and prepare the texture
-    textureID = create_texture("textures/soccer.png");
-
-    // Load the textures for the skybox
-    string skybox_textures[] = {"skyboxes/right.jpg", "skyboxes/left.jpg",
-                                "skyboxes/top.jpg",   "skyboxes/bottom.jpg",
-                                "skyboxes/front.jpg", "skyboxes/back.jpg"};
-    textureID = create_skybox(
-        skybox_textures, sizeof(skybox_textures) /
-        sizeof(skybox_textures[0]));
+    std::string textures[] = {"textures/soccer.png", "textures/grass.jpg", "textures/top.jpeg"};
+    create_texture(textures, sizeof(textures) / sizeof(textures[0]));
 
     // Load the shaders
     GLuint programID =
         createShaderProgram("shaders/vertex.glsl", "shaders/fragment.glsl");
-
-    // Load the skybox shaders
-    //GLuint programID =
-    //    createShaderProgram("shaders/skybox_vertex.glsl", "shaders/skybox_fragment.glsl");
 
     // Calculate the perspective in the scene
     calculate_perspective((float)width / height);
