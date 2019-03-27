@@ -40,7 +40,7 @@ GLuint textureID;
 
 // Camera related objects
 // The position of our eye at default
-glm::vec3 eyePosition(0, 180, 100);
+glm::vec3 eyePosition(0, 180, 360);
 // How much to scale the Scene
 float scaleY = 1.0f;
 // Projection matrix - perspective projection
@@ -105,7 +105,7 @@ static void resize_window(GLFWwindow *window, GLint w, GLint h) {
     calculate_perspective(aspect_ratio);
 }
 
-static void create_object(string objects_files[], int size) {
+static void create_object(std::string objects_files[], int size) {
     for (int i = 0; i < size; i++) {
         objects.push_back(objectModel(objects_files[i]));
         object_vbos.push_back(0);
@@ -137,49 +137,80 @@ static void create_object(string objects_files[], int size) {
     }
 }
 
-static void create_texture(std::string filename) {
+static GLuint create_texture(std::string filename) {
     int imageWidth, imageHeight;
     int numComponents;  // how any values are used to represent each pixel
 
     // load the image data into a bitmap
     // stbi_load from apis/stb_image.h
     unsigned char *bitmap = stbi_load(filename.c_str(), &imageWidth,
-                                      &imageHeight, &numComponents, 0);
+                                      &imageHeight, &numComponents, 4);
 
+    GLuint temp_texture_ID;
     // generate a texture name
-    glGenTextures(1, &textureID);
+    glGenTextures(1, &temp_texture_ID);
     // make the texture active
-    glBindTexture(GL_TEXTURE_2D, textureID);
+    glBindTexture(GL_TEXTURE_2D, temp_texture_ID);
 
     // make a texture mip map
     glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
 
+    // specify the functions to use when shrinking/enlarging the texture
+    // image mipmap
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                    GL_LINEAR_MIPMAP_NEAREST);
+
     // specify the tiling parameters
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-    // specify the functions to use when shrinking/enlarging the texture
-    // image mipmap
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                    GL_LINEAR_MIPMAP_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     // send the data to OpenGL
     if (bitmap) {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, imageWidth, imageHeight, 0,
                      GL_RGBA, GL_UNSIGNED_BYTE, bitmap);
         glGenerateMipmap(GL_TEXTURE_2D);
-
     } else {
         std::cout << "Failed to load texture" << std::endl;
     }
 
     // bind the texture to unit 0
-    glBindTexture(GL_TEXTURE_2D, textureID);
+    glBindTexture(GL_TEXTURE_2D, temp_texture_ID);
     glActiveTexture(GL_TEXTURE0);
 
     // free the bitmap data
     stbi_image_free(bitmap);
+
+    return temp_texture_ID;
+}
+
+// TODO: Mainly copied from a tutorial - rewrite
+static GLuint create_skybox(std::string texture_files[], int size) {
+    GLuint tempTextureID;
+    glGenTextures(1, &tempTextureID);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, tempTextureID);
+
+    int width, height, nrChannels;
+    for (unsigned int i = 0; i < size; i++) {
+        unsigned char *data = stbi_load(texture_files[i].c_str(), &width,
+                                        &height, &nrChannels, 0);
+        if (data) {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width,
+                         height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+            stbi_image_free(data);
+        } else {
+            std::cout << "Cubemap texture failed to load at path: "
+                      << texture_files[i] << std::endl;
+            stbi_image_free(data);
+        }
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    return tempTextureID;
 }
 
 static void draw_object(GLuint programID, objectModel object, GLuint vertex_vbo,
@@ -203,13 +234,6 @@ static void draw_object(GLuint programID, objectModel object, GLuint vertex_vbo,
     GLint texture_normal_attribute =
         glGetAttribLocation(programID, "texture_normal");
 
-    // Send the texture id to the texture sampler
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, textureID);
-    glUniform1i(texture_uniform_attribute, 0);
-
-    glUniform1f(texture_flag_attribute, texture_flag);
-
     // Send the transformations
     glUniformMatrix4fv(mvp_attribute, 1, GL_FALSE, &MVP[0][0]);
     glUniformMatrix4fv(mv_attribute, 1, GL_FALSE, &MV[0][0]);
@@ -227,6 +251,11 @@ static void draw_object(GLuint programID, objectModel object, GLuint vertex_vbo,
     glEnableVertexAttribArray(texture_normal_attribute);
     glVertexAttribPointer(texture_normal_attribute, 3, GL_FLOAT, GL_FALSE, 0,
                           nullptr);
+    // Send the texture data
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+    // glUniform1i(texture_uniform_attribute, 0);
+    glUniform1f(texture_flag_attribute, texture_flag);
     // Send the vertex_data
     glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo);
     glEnableVertexAttribArray(vertex_attribute);
@@ -243,6 +272,7 @@ static void draw_object(GLuint programID, objectModel object, GLuint vertex_vbo,
 static void render(GLFWwindow *window, GLuint programID) {
     // Turn on depth buffering (dont render objects overtop of eachother)
     glEnable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
 
     // CLEAR SCREEN
     // Clear the screen to black
@@ -251,6 +281,9 @@ static void render(GLFWwindow *window, GLuint programID) {
 
     // Render the objects
     for (int i = 0; i < objects.size(); i++) {
+        // Used to turn textures off for specific objects
+        bool use_textures = false;
+
         // Set the axis for rotation
         glm::vec3 rotationAxis(0, 0, 0);
         // Set the identity matrix
@@ -267,13 +300,20 @@ static void render(GLFWwindow *window, GLuint programID) {
             rot_y = 360;
         }
 
-        // Move the object over
-        model_matrix =
-            glm::translate(model_matrix, glm::vec3(trans_x, 0.0, trans_y));
+        if (i == 0) {
+            // Move the object over
+            model_matrix =
+                glm::translate(model_matrix, glm::vec3(trans_x, 0.0, trans_y));
 
-        // Rotate it depending on the value
-        model_matrix = glm::rotate(model_matrix, rot_x, glm::vec3(1, 0, 0));
-        model_matrix = glm::rotate(model_matrix, rot_y, glm::vec3(0, 0, 1));
+            // Rotate it depending on the value
+            model_matrix = glm::rotate(model_matrix, rot_x, glm::vec3(1, 0, 0));
+            model_matrix = glm::rotate(model_matrix, rot_y, glm::vec3(0, 0, 1));
+
+            // Draw the texture on the cube
+            use_textures = true;
+        } else if (i == objects.size() - 1) {
+            use_textures = true;
+        }
 
         // Calculate the scale of the object
         model_matrix =
@@ -283,7 +323,8 @@ static void render(GLFWwindow *window, GLuint programID) {
         draw_object(programID, objects[i], object_vbos[i],
                     object_textcoord_vbos[i], object_normal_vbos[i],
                     projection_matrix * view_matrix * model_matrix,
-                    view_matrix * model_matrix, vec4(i, 0, 1, 1.0), true);
+                    view_matrix * model_matrix, vec4(i / 10, 0, 1, 1.0),
+                    use_textures);
     }
 }
 
@@ -294,14 +335,14 @@ static GLFWwindow *init_opengl() {
     // Init GLFW
     if (!glfwInit()) exit(EXIT_FAILURE);
 
-// Some definitions for MacOS to load properly
-#ifdef __APPLE__
-    // We need to explicitly ask for a 3.2 context on MacOS
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#endif
+    // Some definitions for MacOS to load properly
+    #ifdef __APPLE__
+        // We need to explicitly ask for a 3.2 context on MacOS
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    #endif
     // Enable antialising
     glfwWindowHint(GLFW_SAMPLES, 8);
 
@@ -345,12 +386,20 @@ int main(void) {
     glfwSetFramebufferSizeCallback(window, resize_window);
 
     // The objects that we wish to load in
-    string object_files[] = {"meshes/my_sphere.obj" /*, "meshes/alfa147.obj"*/};
+    // The first object must be the ball, the last object must be the cube
+    string object_files[] = {"meshes/my_sphere.obj", "meshes/cube.obj"};
     // Create/Load the objects
     create_object(object_files, sizeof(object_files) / sizeof(object_files[0]));
 
     // Load and prepare the texture
-    create_texture("textures/soccer.png");
+    textureID = create_texture("textures/soccer.png");
+    // Load the textures for the skybox
+    // string skybox_textures[] = {"skyboxes/right.jpg", "skyboxes/left.jpg",
+    //                             "skyboxes/top.jpg",   "skyboxes/bottom.jpg",
+    //                             "skyboxes/front.jpg", "skyboxes/back.jpg"};
+    // textureID = create_skybox(
+    //     skybox_textures, sizeof(skybox_textures) /
+    //     sizeof(skybox_textures[0]));
 
     // Load the shaders
     GLuint programID =
