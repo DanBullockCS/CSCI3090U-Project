@@ -22,6 +22,7 @@
 
 using namespace glm;
 
+// Window is resizeable
 int width = 640;
 int height = 480;
 
@@ -36,6 +37,8 @@ std::vector<GLuint> object_textcoord_vbos;
 std::vector<GLuint> object_normal_vbos;
 // The IDs for the texture
 std::vector<GLuint> texture_locs;
+// initial offset of each object
+std::vector<glm::vec3> initial_offset;
 
 // Camera related objects
 // The position of our eye at default
@@ -48,13 +51,10 @@ glm::mat4 projection_matrix;
 glm::mat4 view_matrix;
 
 // The velocity to move the object by
-float veloc = 0.3f;
-// How much to rotate the circle
+float veloc = 0.5f;
+// How much to rotate the sphere
 float rot_x = 0.0f;
 float rot_y = 0.0f;
-// How much to move the cirlce
-float trans_x = 0.0f;
-float trans_y = 0.0f;
 
 static void key_callback(GLFWwindow *window, int key, int scancode, int action,
                          int mods) {
@@ -63,18 +63,18 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action,
         glfwSetWindowShouldClose(window, GL_TRUE);
     } else {
         if (key == GLFW_KEY_W) {
+            initial_offset[0].z -= veloc;
             rot_x -= veloc;
-            trans_y -= 1;
         } else if (key == GLFW_KEY_S) {
+            initial_offset[0].z += veloc;
             rot_x += veloc;
-            trans_y += 1;
         }
         if (key == GLFW_KEY_A) {
-            rot_y += veloc;
-            trans_x -= 1;
-        } else if (key == GLFW_KEY_D) {
+            initial_offset[0].x -= veloc;
             rot_y -= veloc;
-            trans_x += 1;
+        } else if (key == GLFW_KEY_D) {
+            initial_offset[0].x += veloc;
+            rot_y += veloc;
         }
     }
 }
@@ -133,8 +133,8 @@ static void create_object(std::string objects_files[], int size) {
 }
 
 static void create_texture(std::string textures[], int size) {
-    // size hard coded to 4 since c++ compiler was not to fond of passing a size
-    GLuint texture_ids[4];
+    // size hard coded to 5 since c++ compiler was not to fond of passing a size
+    GLuint texture_ids[5];
     // generate a texture name
     glGenTextures(size, texture_ids);
 
@@ -174,10 +174,6 @@ static void create_texture(std::string textures[], int size) {
         } else {
             std::cout << "Failed to load texture" << std::endl;
         }
-
-        // bind the texture to unit 0
-        // glBindTexture(GL_TEXTURE_2D, temp_texture_ID);
-        // glActiveTexture(GL_TEXTURE0);
 
         // free the bitmap data
         stbi_image_free(bitmap);
@@ -254,8 +250,8 @@ static void render(GLFWwindow *window, GLuint programID) {
 
     // Render the objects
     for (int i = 0; i < objects.size(); i++) {
-        // Used to turn textures off for specific objects
-        bool use_textures = false;
+        // Used to turn lighting off for specific objects
+        bool use_lighting = false;
 
         // Set the axis for rotation
         glm::vec3 rotationAxis(0, 0, 0);
@@ -273,19 +269,37 @@ static void render(GLFWwindow *window, GLuint programID) {
             rot_y = 360;
         }
 
+        // Sphere translation/rotation
         if (i == 0) {
             // Move the object over
             model_matrix =
-                glm::translate(model_matrix, glm::vec3(trans_x, 20, trans_y));
-
+                glm::translate(model_matrix, initial_offset[i]);
             // Rotate it depending on the value
             model_matrix = glm::rotate(model_matrix, rot_x, glm::vec3(1, 0, 0));
             model_matrix = glm::rotate(model_matrix, rot_y, glm::vec3(0, 0, 1));
 
-            // Draw the texture on the cube
-            use_textures = true;
-        } else if (i == objects.size() - 1) {
-            use_textures = false;
+            use_lighting = true;
+        // Plane (ground)
+        } else if (i == 1) {
+            use_lighting = false;
+            model_matrix =
+                glm::translate(model_matrix, initial_offset[i]);
+        // Cube
+        } else if (i == 2) {
+            use_lighting = false;
+            model_matrix =
+                glm::translate(model_matrix, initial_offset[i]);
+        // Goal post
+        } else if (i == 3) {
+            use_lighting = false;
+            model_matrix =
+                glm::translate(model_matrix, initial_offset[i]);
+            model_matrix = glm::rotate(model_matrix, -40.0f, glm::vec3(0, 1, 0));
+        // Bench
+        } else if (i == 4) {
+            use_lighting = true;
+            model_matrix =
+                glm::translate(model_matrix, initial_offset[i]);
         }
 
         // Calculate the scale of the object
@@ -297,7 +311,7 @@ static void render(GLFWwindow *window, GLuint programID) {
                     object_textcoord_vbos[i], object_normal_vbos[i], texture_locs[i],
                     projection_matrix * view_matrix * model_matrix,
                     view_matrix * model_matrix, vec4(i / 10, 0, 1, 1.0),
-                    use_textures);
+                    use_lighting);
     }
 }
 
@@ -320,7 +334,7 @@ static GLFWwindow *init_opengl() {
     glfwWindowHint(GLFW_SAMPLES, 8);
 
     // Create the window
-    window = glfwCreateWindow(width, height, "OpenGL Project", NULL, NULL);
+    window = glfwCreateWindow(width, height, "CSCI3090U OpenGL Project", NULL, NULL);
     if (!window) {
         glfwTerminate();
         exit(EXIT_FAILURE);
@@ -359,13 +373,27 @@ int main(void) {
     glfwSetFramebufferSizeCallback(window, resize_window);
 
     // The objects that we wish to load in
+    // The initial positions of the obj objects
+    initial_offset.push_back(glm::vec3(-75, 20, 150));         // sphere
+    initial_offset.push_back(glm::vec3(0, 0, 0));              // plane (ground)
+    initial_offset.push_back(glm::vec3(0, 0, 0));              // cube
+    initial_offset.push_back(glm::vec3(0, 0, 0));              // soccer net
+    initial_offset.push_back(glm::vec3(50, 30, 250));          // bench
     // The first object must be the ball, the last object must be the cube
-    string object_files[] = {"meshes/my_sphere.obj", "meshes/plane.obj", "meshes/cube.obj" , "meshes/gate.obj"};
+    string object_files[] = {"meshes/my_sphere.obj",
+                             "meshes/plane.obj",
+                             "meshes/cube.obj" ,
+                             "meshes/gate.obj",
+                             "meshes/bench.obj"};
     // Create/Load the objects
     create_object(object_files, sizeof(object_files) / sizeof(object_files[0]));
 
     // Load and prepare the texture
-    std::string textures[] = {"textures/soccer.png", "textures/grass.jpg", "textures/cartoon_sky.png", "textures/fishnet.png"};
+    std::string textures[] = {"textures/soccer.png",
+                              "textures/grass.jpg",
+                              "textures/cartoon_sky.png",
+                              "textures/goal.png",
+                              "textures/planks.jpg"};
     create_texture(textures, sizeof(textures) / sizeof(textures[0]));
 
     // Load the shaders
