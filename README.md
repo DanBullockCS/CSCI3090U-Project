@@ -16,7 +16,17 @@ Nmake /F Nmakefile.Windows
 main
 ```
 
-- Used WASD to move around the soccer ball sphere obj
+# On Mac OS 
+- compile using make
+```
+make -f Makefile.MacOS
+```
+- run the main
+```
+./main
+```
+
+- Use WASD to move around the soccer ball sphere obj
 
 # Techniques used:
 - Peer programming (some commits are shared between partners)
