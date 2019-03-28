@@ -47,10 +47,6 @@ glm::mat4 projection_matrix;
 // View matrix - orient everything around our preferred view
 glm::mat4 view_matrix;
 
-// Define colors
-vec4 pink(1.0, 0.5, 0.5, 1.0);
-vec4 blue(0.0, 0.0, 0.8, 1.0);
-
 // The velocity to move the object by
 float veloc = 0.3f;
 // How much to rotate the circle
@@ -137,7 +133,8 @@ static void create_object(std::string objects_files[], int size) {
 }
 
 static void create_texture(std::string textures[], int size) {
-    GLuint texture_ids[size];
+    // size hard coded to 4 since c++ compiler was not to fond of passing a size
+    GLuint texture_ids[4];
     // generate a texture name
     glGenTextures(size, texture_ids);
 
@@ -152,7 +149,7 @@ static void create_texture(std::string textures[], int size) {
 
         // load the image data into a bitmap
         // stbi_load from apis/stb_image.h
-        stbi_set_flip_vertically_on_load(true);  
+        stbi_set_flip_vertically_on_load(true);
         unsigned char *bitmap = stbi_load(filename.c_str(), &imageWidth,
                                           &imageHeight, &numComponents, 4);
 
@@ -187,35 +184,6 @@ static void create_texture(std::string textures[], int size) {
 
         texture_locs.push_back(texture_ids[i]);
     }
-}
-
-// TODO: Mainly copied from a tutorial - rewrite
-static GLuint create_skybox(std::string texture_files[], int size) {
-    GLuint tempTextureID;
-    glGenTextures(1, &tempTextureID);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, tempTextureID);
-
-    int width, height, num_channels;
-    for (unsigned int i = 0; i < size; i++) {
-        unsigned char *data = stbi_load(texture_files[i].c_str(), &width,
-                                        &height, &num_channels, 0);
-        if (data) {
-            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width,
-                         height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-            stbi_image_free(data);
-        } else {
-            std::cout << "Cubemap texture failed to load at the path: "
-                      << texture_files[i] << std::endl;
-            stbi_image_free(data);
-        }
-    }
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-
-    return tempTextureID;
 }
 
 static void draw_object(GLuint programID, objectModel object, GLuint vertex_vbo,
@@ -392,12 +360,12 @@ int main(void) {
 
     // The objects that we wish to load in
     // The first object must be the ball, the last object must be the cube
-    string object_files[] = {"meshes/my_sphere.obj", "meshes/plane.obj", "meshes/cube.obj"};
+    string object_files[] = {"meshes/my_sphere.obj", "meshes/plane.obj", "meshes/cube.obj" , "meshes/gate.obj"};
     // Create/Load the objects
     create_object(object_files, sizeof(object_files) / sizeof(object_files[0]));
 
     // Load and prepare the texture
-    std::string textures[] = {"textures/soccer.png", "textures/grass.jpg", "textures/top.jpeg"};
+    std::string textures[] = {"textures/soccer.png", "textures/grass.jpg", "textures/cartoon_sky.png", "textures/fishnet.png"};
     create_texture(textures, sizeof(textures) / sizeof(textures[0]));
 
     // Load the shaders
