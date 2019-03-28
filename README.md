@@ -1,5 +1,5 @@
 # CSCI3090U-Project
-Graphics Project For CSCI3090U.
+Graphics Project For CSCI3090U. (Controllable Soccer ball with grass, sky and goal post)
 
 # Group members:
 - Kevin Desousa	 (Desousak)
@@ -15,6 +15,7 @@ Nmake /F Nmakefile.Windows
 ```
 main
 ```
+- Use WASD to move around the soccer ball sphere obj
 
 # On Mac OS 
 - compile using make
@@ -25,7 +26,6 @@ make -f Makefile.MacOS
 ```
 ./main
 ```
-
 - Use WASD to move around the soccer ball sphere obj
 
 # Techniques used:
