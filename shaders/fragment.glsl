@@ -19,16 +19,20 @@ void main(){
     float distance = length(light_pos - pos_view);
     // Ambient
     vec4 ambient_color = vec4(0.3, 0.3, 0.3, 1.0) * vec4(texture(u_texture_sampler, UV).rgb, 1.0);
+
     // Diffuse
     float diffuse = clamp(dot(norm_view, lightvec_view), 0, 1);
+
     // Attenuate
     diffuse = diffuse * (1.0 / (1.0 + (0.00025 * distance * distance)));
+
     // Specular
     vec3 incid_vec = -lightvec_view;
     vec3 refl_vec = reflect(incid_vec, norm_view);
     vec3 eye_vec = normalize(u_eye_pos - pos_view);
     float cos_angle = clamp(dot(eye_vec, refl_vec), 0, 1);
     float specular = pow(cos_angle, u_shininess);
+
     // Texturing
     outColor = vec4(1.0, 1.0, 1.0, 1.0) * specular
         + vec4(texture(u_texture_sampler, UV).rgb, 1.0) * diffuse

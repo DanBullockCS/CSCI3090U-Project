@@ -1,3 +1,5 @@
+// Shader Program code from: https://github.com/randyfortier/CSCI3090U_Examples (ShaderProgram.cpp)
+
 GLuint createShader(const GLenum shaderType, const std::string shaderFilename) {
    // load the shader source code
    std::ifstream fileIn(shaderFilename.c_str());

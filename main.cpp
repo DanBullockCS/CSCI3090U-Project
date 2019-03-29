@@ -20,6 +20,7 @@
 
 // Object loader for objs
 #include "objectModel.cpp"
+// Program for loading shaders
 #include "shader.hpp"
 
 using namespace glm;
@@ -404,8 +405,8 @@ int main(void) {
     initial_offset.push_back(glm::vec3(-75, 20, 150));         // sphere
     initial_offset.push_back(glm::vec3(0, 0, 0));              // plane (ground)
     initial_offset.push_back(glm::vec3(0, 0, 0));              // cube
-    initial_offset.push_back(glm::vec3(0, 100, 0));              // soccer net goal
-    initial_offset.push_back(glm::vec3(25, 0, 450));          // bench
+    initial_offset.push_back(glm::vec3(0, 100, -50));          // soccer net goal
+    initial_offset.push_back(glm::vec3(25, 0, 450));           // bench
     string object_files[] = {"meshes/my_sphere.obj",
                              "meshes/plane.obj",
                              "meshes/cube.obj" ,
