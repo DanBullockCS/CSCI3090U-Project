@@ -6,7 +6,7 @@ Graphics Project For CSCI3090U. (Controllable Soccer ball with grass, sky and go
 - Daniel Bullock (DanBullockCS)
 
 # How to run
-# On Windows using Command Prompt for Visual Studio 2017:
+#### On Windows using Command Prompt for Visual Studio 2017:
 - compile using Nmake
 ```
 Nmake /F Nmakefile.Windows
