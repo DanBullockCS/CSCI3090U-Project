@@ -22,7 +22,7 @@ void main(){
     // Diffuse
     float diffuse = clamp(dot(norm_view, lightvec_view), 0, 1);
     // Attenuate
-    //diffuse = diffuse * (1.0 / (1.0 + (0.00025 * distance * distance)));
+    diffuse = diffuse * (1.0 / (1.0 + (0.00025 * distance * distance)));
     // Specular
     vec3 incid_vec = -lightvec_view;
     vec3 refl_vec = reflect(incid_vec, norm_view);
@@ -31,12 +31,7 @@ void main(){
     float specular = pow(cos_angle, u_shininess);
 
 
-    //if(u_lighting_switch){
-        outColor = vec4(1.0, 1.0, 1.0, 1.0) * specular 
-            + vec4(texture(u_texture_sampler, UV).rgb, 1.0) * diffuse 
-            + ambient_color;
-    //} else {
-    //    outColor = vec4(texture(u_texture_sampler, UV).rgb, 1.0) * diffuse 
-    //        + ambient_color;
-    //}
+    outColor = vec4(1.0, 1.0, 1.0, 1.0) * specular 
+        + vec4(texture(u_texture_sampler, UV).rgb, 1.0) * diffuse 
+        + ambient_color;
 }

@@ -42,13 +42,18 @@ std::vector<glm::vec3> initial_offset;
 
 // Camera related objects
 // The position of our eye at default
-glm::vec3 eyePosition(0, 90, 360);
+glm::vec3 eye_position(0, 90, 360);
 // How much to scale the Scene
 float scaleY = 1.0f;
 // Projection matrix - perspective projection
 glm::mat4 projection_matrix;
 // View matrix - orient everything around our preferred view
 glm::mat4 view_matrix;
+
+// Light position
+glm::vec3 light_position(0,0,0);
+// Values to move the light
+bool increase_light_pos_xy;
 
 // The velocity to move the object by
 float veloc = 2.0f;
@@ -213,9 +218,9 @@ static void draw_object(GLuint programID, objectModel object, GLuint vertex_vbo,
     // Send the color information
     glUniform4fv(color_attribute, 1, (GLfloat *)&color[0]);
     // Send the light position information
-    glUniform3f(light_pos_attribute, 0, 10, 0);
+    glUniform3f(light_pos_attribute, light_position.x, light_position.y, light_position.z);
     // Send the eye position information
-    glUniform3f(eye_pos_attribute, eyePosition.x, eyePosition.y, eyePosition.z);
+    glUniform3f(eye_pos_attribute, eye_position.x, eye_position.y, eye_position.z);
     // Send the shininess information
     glUniform1f(shine_attribute, 2.5f);
     // Send the texture coords
@@ -277,6 +282,20 @@ static void render(GLFWwindow *window, GLuint programID) {
             rot_y = 360;
         }
 
+        // Move the light source constantly
+        if(light_position.y >= 400){
+            increase_light_pos_xy = false;
+        } else  if (light_position.y <= -400){
+            increase_light_pos_xy = true;
+        }
+        if(increase_light_pos_xy) {
+            light_position.y += 0.3;
+            light_position.x += 0.3;
+        } else {
+            light_position.y -= 0.3;
+            light_position.x -= 0.3;
+        }
+
         // Sphere translation/rotation
         if (i == 0) {
             // Move the object over
@@ -307,7 +326,7 @@ static void render(GLFWwindow *window, GLuint programID) {
         } else if (i == 4) {
             use_lighting = true;
             model_matrix = glm::translate(model_matrix, initial_offset[i]);
-             model_matrix = glm::rotate(model_matrix, -40.0f, glm::vec3(0, 1, 0));
+            model_matrix = glm::rotate(model_matrix, -40.0f, glm::vec3(0, 1, 0));
             // Scale the large static bench down
             model_matrix =  glm::scale(model_matrix, glm::vec3(0.005, 0.005, 0.005));
         }
@@ -415,7 +434,7 @@ int main(void) {
 
     // Calculate the view matrix (where we're looking at)
     view_matrix =
-        glm::lookAt(eyePosition, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+        glm::lookAt(eye_position, glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
     while (!glfwWindowShouldClose(window)) {
         // Render the scene
