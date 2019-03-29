@@ -44,7 +44,7 @@ std::vector<glm::vec3> initial_offset;
 
 // Camera related objects
 // The position of our eye at default
-glm::vec3 eye_position(0, 90, 360);
+glm::vec3 eye_position(0, 90, 630);
 // How much to scale the Scene
 float scaleY = 1.0f;
 // Projection matrix - perspective projection
@@ -299,16 +299,13 @@ static void render(GLFWwindow *window, GLuint programID) {
 
         // Sphere translation/rotation
         if (i == 0) {
+            use_lighting = true;
             // Move the object over
             model_matrix =
                 glm::translate(model_matrix, initial_offset[i]);
             // Rotate it depending on the value
             model_matrix = glm::rotate(model_matrix, rot_x, glm::vec3(1, 0, 0));
             model_matrix = glm::rotate(model_matrix, rot_y, glm::vec3(0, 0, 1));
-            // Scale down the ball so it's not exercise ball size
-            model_matrix =  glm::scale(model_matrix, glm::vec3(0.5, 0.5, 0.5));
-
-            use_lighting = true;
         // Plane (ground)
         } else if (i == 1) {
             use_lighting = false;
@@ -326,13 +323,14 @@ static void render(GLFWwindow *window, GLuint programID) {
                 glm::translate(model_matrix, initial_offset[i]);
             // Rotate the goal post to show it's model
             model_matrix = glm::rotate(model_matrix, -40.0f, glm::vec3(0, 1, 0));
+            model_matrix =  glm::scale(model_matrix, glm::vec3(1.0, 1.0, 2.0));
         // Bench
         } else if (i == 4) {
             use_lighting = true;
             model_matrix = glm::translate(model_matrix, initial_offset[i]);
             model_matrix = glm::rotate(model_matrix, -40.0f, glm::vec3(0, 1, 0));
             // Scale the large static bench down
-            model_matrix =  glm::scale(model_matrix, glm::vec3(0.005, 0.005, 0.005));
+            model_matrix =  glm::scale(model_matrix, glm::vec3(0.01, 0.01, 0.01));
         }
 
         // Draw the object
@@ -403,11 +401,11 @@ int main(void) {
 
     // The objects that we wish to load in
     // The initial positions of the obj objects
-    initial_offset.push_back(glm::vec3(-75, 10, 150));         // sphere
+    initial_offset.push_back(glm::vec3(-75, 20, 150));         // sphere
     initial_offset.push_back(glm::vec3(0, 0, 0));              // plane (ground)
     initial_offset.push_back(glm::vec3(0, 0, 0));              // cube
-    initial_offset.push_back(glm::vec3(0, 0, 0));              // soccer net goal
-    initial_offset.push_back(glm::vec3(25, 20, 250));          // bench
+    initial_offset.push_back(glm::vec3(0, 100, 0));              // soccer net goal
+    initial_offset.push_back(glm::vec3(25, 0, 450));          // bench
     string object_files[] = {"meshes/my_sphere.obj",
                              "meshes/plane.obj",
                              "meshes/cube.obj" ,
