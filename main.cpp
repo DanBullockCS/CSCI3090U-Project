@@ -51,7 +51,9 @@ glm::mat4 projection_matrix;
 glm::mat4 view_matrix;
 
 // The velocity to move the object by
-float veloc = 0.5f;
+float veloc = 2.0f;
+// The amount to rotate the ball by
+float rot = 0.5f;
 // How much to rotate the sphere
 float rot_x = 0.0f;
 float rot_y = 0.0f;
@@ -64,17 +66,17 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action,
     } else {
         if (key == GLFW_KEY_W) {
             initial_offset[0].z -= veloc;
-            rot_x -= veloc;
+            rot_x -= rot;
         } else if (key == GLFW_KEY_S) {
             initial_offset[0].z += veloc;
-            rot_x += veloc;
+            rot_x += rot;
         }
         if (key == GLFW_KEY_A) {
             initial_offset[0].x -= veloc;
-            rot_y -= veloc;
+            rot_y -= rot;
         } else if (key == GLFW_KEY_D) {
             initial_offset[0].x += veloc;
-            rot_y += veloc;
+            rot_y += rot;
         }
     }
 }
@@ -194,6 +196,8 @@ static void draw_object(GLuint programID, objectModel object, GLuint vertex_vbo,
     GLuint mv_attribute = glGetUniformLocation(programID, "u_MV");
     GLuint color_attribute = glGetUniformLocation(programID, "u_color");
     GLuint light_pos_attribute = glGetUniformLocation(programID, "u_light_pos");
+    GLuint eye_pos_attribute = glGetUniformLocation(programID, "u_eye_pos");
+    GLuint shine_attribute = glGetUniformLocation(programID, "u_shininess");
     GLuint texture_uniform_attribute =
         glGetUniformLocation(programID, "u_texture_sampler");
     GLuint texture_flag_attribute =
@@ -209,7 +213,11 @@ static void draw_object(GLuint programID, objectModel object, GLuint vertex_vbo,
     // Send the color information
     glUniform4fv(color_attribute, 1, (GLfloat *)&color[0]);
     // Send the light position information
-    glUniform3f(light_pos_attribute, 100, 0, 0);
+    glUniform3f(light_pos_attribute, 0, 10, 0);
+    // Send the eye position information
+    glUniform3f(eye_pos_attribute, eyePosition.x, eyePosition.y, eyePosition.z);
+    // Send the shininess information
+    glUniform1f(shine_attribute, 2.5f);
     // Send the texture coords
     glBindBuffer(GL_ARRAY_BUFFER, uv_vbo);
     glEnableVertexAttribArray(texture_coords_attribute);
@@ -298,13 +306,15 @@ static void render(GLFWwindow *window, GLuint programID) {
         // Bench
         } else if (i == 4) {
             use_lighting = true;
-            model_matrix =
-                glm::translate(model_matrix, initial_offset[i]);
+            model_matrix = glm::translate(model_matrix, initial_offset[i]);
+             model_matrix = glm::rotate(model_matrix, -40.0f, glm::vec3(0, 1, 0));
+            // Scale the large static bench down
+            model_matrix =  glm::scale(model_matrix, glm::vec3(0.005, 0.005, 0.005));
         }
 
         // Calculate the scale of the object
-        model_matrix =
-            glm::scale(model_matrix, glm::vec3(scaleY, scaleY, scaleY));
+        // model_matrix =
+        //     glm::scale(model_matrix, glm::vec3(scaleY, scaleY, scaleY));
 
         // Draw the object
         draw_object(programID, objects[i], object_vbos[i],
@@ -378,13 +388,13 @@ int main(void) {
     initial_offset.push_back(glm::vec3(0, 0, 0));              // plane (ground)
     initial_offset.push_back(glm::vec3(0, 0, 0));              // cube
     initial_offset.push_back(glm::vec3(0, 0, 0));              // soccer net
-    initial_offset.push_back(glm::vec3(50, 30, 250));          // bench
+    initial_offset.push_back(glm::vec3(25, 20, 250));          // bench
     // The first object must be the ball, the last object must be the cube
     string object_files[] = {"meshes/my_sphere.obj",
                              "meshes/plane.obj",
                              "meshes/cube.obj" ,
                              "meshes/gate.obj",
-                             "meshes/bench.obj"};
+                             "meshes/Bench3.obj"};
     // Create/Load the objects
     create_object(object_files, sizeof(object_files) / sizeof(object_files[0]));
 
