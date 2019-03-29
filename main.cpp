@@ -14,9 +14,11 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/transform.hpp>
 
+// Used for loading in images for textures
 #define STB_IMAGE_IMPLEMENTATION
 #include "apis/stb_image.h"
 
+// Object loader for objs
 #include "objectModel.cpp"
 #include "shader.hpp"
 
@@ -35,7 +37,7 @@ std::vector<objectModel> objects;
 std::vector<GLuint> object_textcoord_vbos;
 // The multiple normals
 std::vector<GLuint> object_normal_vbos;
-// The IDs for the texture
+// The IDs for the textures
 std::vector<GLuint> texture_locs;
 // initial offset of each object
 std::vector<glm::vec3> initial_offset;
@@ -57,7 +59,7 @@ bool increase_light_pos_xy;
 
 // The velocity to move the object by
 float veloc = 2.0f;
-// The amount to rotate the ball by
+// The amount to rotate the sphere by
 float rot = 0.5f;
 // How much to rotate the sphere
 float rot_x = 0.0f;
@@ -114,7 +116,6 @@ static void create_object(std::string objects_files[], int size) {
         object_textcoord_vbos.push_back(0);
         object_normal_vbos.push_back(0);
 
-        // FIRST OBJECT
         // VERTEX BUFFER OBJECTS (vbo)
         glGenBuffers(1, &object_vbos[i]);  // Create a buffer
         // Send the buffer to the GPU and make it active
@@ -185,6 +186,7 @@ static void create_texture(std::string textures[], int size) {
         // free the bitmap data
         stbi_image_free(bitmap);
 
+        // push the texture ids to a vector
         texture_locs.push_back(texture_ids[i]);
     }
 }
@@ -236,7 +238,6 @@ static void draw_object(GLuint programID, objectModel object, GLuint vertex_vbo,
     // Send the texture data
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, textureID);
-    // glUniform1i(texture_uniform_attribute, 0);
     glUniform1f(texture_flag_attribute, texture_flag);
     // Send the vertex_data
     glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo);
@@ -252,7 +253,7 @@ static void draw_object(GLuint programID, objectModel object, GLuint vertex_vbo,
 }
 
 static void render(GLFWwindow *window, GLuint programID) {
-    // Turn on depth buffering (dont render objects overtop of eachother)
+    // Turn on depth buffering (dont render objects over top of each other)
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
 
@@ -304,6 +305,8 @@ static void render(GLFWwindow *window, GLuint programID) {
             // Rotate it depending on the value
             model_matrix = glm::rotate(model_matrix, rot_x, glm::vec3(1, 0, 0));
             model_matrix = glm::rotate(model_matrix, rot_y, glm::vec3(0, 0, 1));
+            // Scale down the ball so it's not exercise ball size
+            model_matrix =  glm::scale(model_matrix, glm::vec3(0.5, 0.5, 0.5));
 
             use_lighting = true;
         // Plane (ground)
@@ -311,7 +314,7 @@ static void render(GLFWwindow *window, GLuint programID) {
             use_lighting = false;
             model_matrix =
                 glm::translate(model_matrix, initial_offset[i]);
-        // Cube
+        // Cube ('Skybox')
         } else if (i == 2) {
             use_lighting = false;
             model_matrix =
@@ -321,6 +324,7 @@ static void render(GLFWwindow *window, GLuint programID) {
             use_lighting = false;
             model_matrix =
                 glm::translate(model_matrix, initial_offset[i]);
+            // Rotate the goal post to show it's model
             model_matrix = glm::rotate(model_matrix, -40.0f, glm::vec3(0, 1, 0));
         // Bench
         } else if (i == 4) {
@@ -330,10 +334,6 @@ static void render(GLFWwindow *window, GLuint programID) {
             // Scale the large static bench down
             model_matrix =  glm::scale(model_matrix, glm::vec3(0.005, 0.005, 0.005));
         }
-
-        // Calculate the scale of the object
-        // model_matrix =
-        //     glm::scale(model_matrix, glm::vec3(scaleY, scaleY, scaleY));
 
         // Draw the object
         draw_object(programID, objects[i], object_vbos[i],
@@ -348,7 +348,7 @@ static GLFWwindow *init_opengl() {
     // The variable to hold the window in
     GLFWwindow *window;
 
-    // Init GLFW
+    // Initialize GLFW
     if (!glfwInit()) exit(EXIT_FAILURE);
 
     // Some definitions for MacOS to load properly
@@ -373,7 +373,7 @@ static GLFWwindow *init_opengl() {
 
     // Use experimental features of GLEW
     glewExperimental = GL_TRUE;
-    // Init GLEW
+    // Initialize GLEW
     glewInit();
 
     // Throw an error if we don't have opengl 3.2
@@ -393,7 +393,7 @@ static GLFWwindow *init_opengl() {
 }
 
 int main(void) {
-    // Init the scene
+    // Initialize the scene
     GLFWwindow *window = init_opengl();
 
     // Catch keyboard keys
@@ -406,18 +406,17 @@ int main(void) {
     initial_offset.push_back(glm::vec3(-75, 20, 150));         // sphere
     initial_offset.push_back(glm::vec3(0, 0, 0));              // plane (ground)
     initial_offset.push_back(glm::vec3(0, 0, 0));              // cube
-    initial_offset.push_back(glm::vec3(0, 0, 0));              // soccer net
+    initial_offset.push_back(glm::vec3(0, 0, 0));              // soccer net goal
     initial_offset.push_back(glm::vec3(25, 20, 250));          // bench
-    // The first object must be the ball, the last object must be the cube
     string object_files[] = {"meshes/my_sphere.obj",
                              "meshes/plane.obj",
                              "meshes/cube.obj" ,
                              "meshes/gate.obj",
-                             "meshes/Bench3.obj"};
+                             "meshes/bench.obj"};
     // Create/Load the objects
     create_object(object_files, sizeof(object_files) / sizeof(object_files[0]));
 
-    // Load and prepare the texture
+    // Load and prepare the textures
     std::string textures[] = {"textures/soccer.png",
                               "textures/grass.jpg",
                               "textures/cartoon_sky.png",
@@ -443,7 +442,6 @@ int main(void) {
         // Display the image
         glfwSwapBuffers(window);
         glfwPollEvents();
-        // glfwWaitEvents();
     }
 
     glfwDestroyWindow(window);

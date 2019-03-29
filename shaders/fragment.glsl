@@ -29,9 +29,8 @@ void main(){
     vec3 eye_vec = normalize(u_eye_pos - pos_view);
     float cos_angle = clamp(dot(eye_vec, refl_vec), 0, 1);
     float specular = pow(cos_angle, u_shininess);
-
-
-    outColor = vec4(1.0, 1.0, 1.0, 1.0) * specular 
-        + vec4(texture(u_texture_sampler, UV).rgb, 1.0) * diffuse 
+    // Texturing
+    outColor = vec4(1.0, 1.0, 1.0, 1.0) * specular
+        + vec4(texture(u_texture_sampler, UV).rgb, 1.0) * diffuse
         + ambient_color;
 }
