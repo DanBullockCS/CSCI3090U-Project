@@ -403,7 +403,7 @@ int main(void) {
 
     // The objects that we wish to load in
     // The initial positions of the obj objects
-    initial_offset.push_back(glm::vec3(-75, 20, 150));         // sphere
+    initial_offset.push_back(glm::vec3(-75, 10, 150));         // sphere
     initial_offset.push_back(glm::vec3(0, 0, 0));              // plane (ground)
     initial_offset.push_back(glm::vec3(0, 0, 0));              // cube
     initial_offset.push_back(glm::vec3(0, 0, 0));              // soccer net goal
