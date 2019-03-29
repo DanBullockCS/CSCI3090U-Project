@@ -89,7 +89,7 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action,
 static void calculate_perspective(float aspect_ratio) {
     // Calculate the projection matrix with a 45 degree field of view
     projection_matrix =
-        glm::perspective(glm::radians(45.0f), aspect_ratio, 0.1f, 1000.0f);
+        glm::perspective(glm::radians(45.0f), aspect_ratio, 0.1f, 5000.0f);
 }
 
 static void resize_window(GLFWwindow *window, GLint w, GLint h) {
